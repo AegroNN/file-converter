@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import path from "path";
 import { createJob } from "@/lib/jobs";
 import { runConversion } from "@/lib/ffmpeg";
+import { runDocumentConversion } from "@/lib/document-converter";
 import { FORMATS } from "@/lib/formats";
 import { MediaType } from "@/lib/types";
 
@@ -51,7 +52,11 @@ export async function POST(request: NextRequest) {
     progress: 0,
   });
 
-  runConversion(jobId);
+  if (mediaType === "document") {
+    runDocumentConversion(jobId);
+  } else {
+    runConversion(jobId);
+  }
 
   return NextResponse.json({ jobId });
 }

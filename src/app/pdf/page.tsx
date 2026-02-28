@@ -66,8 +66,10 @@ function FileRow({
   );
 }
 
-export default function AudioPage() {
-  const conversion = useConversion("audio", FORMATS.audio);
+const ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp,.bmp,.tiff,.docx,.xlsx,.pptx";
+
+export default function PdfPage() {
+  const conversion = useConversion("document", FORMATS.document);
 
   const overallStatus = conversion.anyProcessing
     ? "processing"
@@ -77,14 +79,14 @@ export default function AudioPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-2">Audio Converter</h1>
+      <h1 className="text-3xl font-bold mb-2">PDF Converter</h1>
       <p className="text-zinc-500 mb-8">
-        Convert your audio files between different formats
+        Convert images and documents to PDF, or PDF to images
       </p>
 
       <DropZone
         onFiles={conversion.addFiles}
-        accept="audio/*"
+        accept={ACCEPT}
         fileCount={conversion.files.length}
       />
 
@@ -102,7 +104,7 @@ export default function AudioPage() {
           </div>
 
           <FormatSelector
-            formats={FORMATS.audio}
+            formats={FORMATS.document}
             value={conversion.outputFormat}
             onChange={conversion.setOutputFormat}
           />

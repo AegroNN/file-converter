@@ -7,6 +7,8 @@ const tabs = [
   { label: "Video", href: "/video" },
   { label: "Photo", href: "/photo" },
   { label: "Audio", href: "/audio" },
+  { label: "PDF", href: "/pdf" },
+  { label: "JSON", href: "/json" },
 ];
 
 export default function Navbar() {

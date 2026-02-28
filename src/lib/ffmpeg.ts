@@ -10,8 +10,15 @@ export function runConversion(jobId: string): void {
 
   updateJob(jobId, { status: "processing" });
 
-  ffmpeg(job.inputPath)
-    .toFormat(job.outputFormat)
+  const command = ffmpeg(job.inputPath);
+
+  if (job.mediaType === "photo") {
+    command.outputOptions("-frames:v", "1");
+  } else {
+    command.toFormat(job.outputFormat);
+  }
+
+  command
     .on("progress", (p) => {
       updateJob(jobId, { progress: Math.round(p.percent ?? 0) });
     })

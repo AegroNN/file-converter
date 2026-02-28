@@ -1,4 +1,4 @@
-export type MediaType = "video" | "photo" | "audio";
+export type MediaType = "video" | "photo" | "audio" | "document";
 
 export type JobStatus = "pending" | "processing" | "done" | "error";
 
