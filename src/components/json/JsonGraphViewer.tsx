@@ -35,6 +35,7 @@ function GraphInner({ data, fileName, onClear }: JsonGraphViewerProps) {
     () => new Map(),
   );
   const isInitialLayout = useRef(true);
+  const draggedPositions = useRef(new Map<string, { x: number; y: number }>());
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen((prev) => !prev);
@@ -61,8 +62,20 @@ function GraphInner({ data, fileName, onClear }: JsonGraphViewerProps) {
     return { graphNodes: result.nodes, graphEdges: result.edges };
   }, [data, expandedPaths, childLimits]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(graphNodes);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState(graphNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graphEdges);
+
+  const onNodesChange = useCallback(
+    (changes: Parameters<typeof onNodesChangeBase>[0]) => {
+      onNodesChangeBase(changes);
+      for (const change of changes) {
+        if (change.type === "position" && change.position && !change.dragging) {
+          draggedPositions.current.set(change.id, { ...change.position });
+        }
+      }
+    },
+    [onNodesChangeBase],
+  );
 
   // Build adjacency maps
   const { childrenMap, parentMap, nodeLabelMap } = useMemo(() => {
@@ -85,11 +98,9 @@ function GraphInner({ data, fileName, onClear }: JsonGraphViewerProps) {
     return { childrenMap: cm, parentMap: pm, nodeLabelMap: lm };
   }, [graphNodes, graphEdges]);
 
-  // Layout that preserves existing positions for unchanged nodes
   const layoutNodes = useCallback(
     (
       incomingNodes: Node<JsonNodeData>[],
-      previousPositions: Map<string, { x: number; y: number }>,
       shouldFitView: boolean,
     ) => {
       const NODE_WIDTH = 220;
@@ -145,7 +156,8 @@ function GraphInner({ data, fileName, onClear }: JsonGraphViewerProps) {
       layoutNode("root", 0);
 
       const laid = incomingNodes.map((n) => {
-        const pos = positions.get(n.id);
+        const dragged = draggedPositions.current.get(n.id);
+        const pos = dragged || positions.get(n.id);
         const nd = n.data as JsonNodeData;
         const jsonValue = nd.jsonPath && !nd.isLoadMore
           ? resolveJsonPath(data, nd.jsonPath)
@@ -170,18 +182,10 @@ function GraphInner({ data, fileName, onClear }: JsonGraphViewerProps) {
 
   // When graph data changes, re-layout
   useEffect(() => {
-    // Collect current positions to use as reference
-    const prevPositions = new Map<string, { x: number; y: number }>();
-    for (const n of nodes) {
-      if (n.position.x !== 0 || n.position.y !== 0) {
-        prevPositions.set(n.id, n.position);
-      }
-    }
-
     const shouldFit = isInitialLayout.current;
     isInitialLayout.current = false;
 
-    layoutNodes(graphNodes, prevPositions, shouldFit);
+    layoutNodes(graphNodes, shouldFit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graphNodes, graphEdges]);
 
@@ -295,8 +299,8 @@ function GraphInner({ data, fileName, onClear }: JsonGraphViewerProps) {
 
   const handleRelayout = useCallback(() => {
     isInitialLayout.current = true;
-    // Force re-layout with fitView
-    layoutNodes(graphNodes, new Map(), true);
+    draggedPositions.current.clear();
+    layoutNodes(graphNodes, true);
   }, [graphNodes, layoutNodes]);
 
   const expandAll = useCallback(() => {
@@ -325,11 +329,13 @@ function GraphInner({ data, fileName, onClear }: JsonGraphViewerProps) {
     }
 
     isInitialLayout.current = true;
+    draggedPositions.current.clear();
     setExpandedPaths(allPaths);
   }, [data]);
 
   const collapseAll = useCallback(() => {
     isInitialLayout.current = true;
+    draggedPositions.current.clear();
     setExpandedPaths(new Set(["root"]));
     setChildLimits(new Map());
     setSelectedNodeId(null);
