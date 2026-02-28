@@ -143,15 +143,11 @@ function buildNodeForValue(
   };
 }
 
-let idSeq = 0;
-
 export function jsonToGraph(
   data: unknown,
   expandedPaths: Set<string>,
   childLimits: Map<string, number>,
 ): GraphResult {
-  idSeq = 0;
-
   const nodes: Node<JsonNodeData>[] = [];
   const edges: Edge[] = [];
 
@@ -178,22 +174,23 @@ export function jsonToGraph(
     key: string;
     jsonPath: string;
     parentNodeId: string | null;
-    nodeId: string;
-  }[] = [{ key: "root", jsonPath: "root", parentNodeId: null, nodeId: "root" }];
+  }[] = [{ key: "root", jsonPath: "root", parentNodeId: null }];
+  let qi = 0;
 
-  while (queue.length > 0) {
-    const item = queue.shift()!;
+  while (qi < queue.length) {
+    const item = queue[qi++];
     const val = resolveJsonPath(data, item.jsonPath);
 
     if (val === null || typeof val !== "object") continue;
 
+    const nodeId = item.jsonPath;
     const isExpanded = expandedPaths.has(item.jsonPath);
     const visibleCount = childLimits.get(item.jsonPath) ?? PAGE_SIZE;
 
     const { node, childEntries, totalChildren } = buildNodeForValue(
       item.key,
       val,
-      item.nodeId,
+      nodeId,
       item.jsonPath,
       isExpanded,
       item.parentNodeId === null,
@@ -204,26 +201,24 @@ export function jsonToGraph(
 
     if (item.parentNodeId) {
       edges.push({
-        id: `e-${idSeq++}`,
+        id: `e-${item.parentNodeId}-${nodeId}`,
         source: item.parentNodeId,
-        target: item.nodeId,
+        target: nodeId,
       });
     }
 
     for (const child of childEntries) {
-      const childNodeId = `n-${idSeq++}`;
       queue.push({
         key: child.key,
         jsonPath: child.jsonPath,
-        parentNodeId: item.nodeId,
-        nodeId: childNodeId,
+        parentNodeId: nodeId,
       });
     }
 
     // Add "load more" node if there are hidden children
     if (isExpanded && visibleCount < totalChildren) {
       const remaining = totalChildren - visibleCount;
-      const loadMoreId = `lm-${idSeq++}`;
+      const loadMoreId = `lm-${item.jsonPath}`;
       nodes.push({
         id: loadMoreId,
         type: "jsonNode",
@@ -244,8 +239,8 @@ export function jsonToGraph(
         },
       });
       edges.push({
-        id: `e-${idSeq++}`,
-        source: item.nodeId,
+        id: `e-${nodeId}-${loadMoreId}`,
+        source: nodeId,
         target: loadMoreId,
       });
     }
